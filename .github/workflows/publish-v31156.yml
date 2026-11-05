@@ -72,7 +72,7 @@ jobs:
               f.seek(0x3c)
               pos=int.from_bytes(f.read(4),'little')
               f.seek(pos)
-              assert f.read(4) == b'PE\\x00\\x00', 'Missing PE header'
+              assert f.read(4) == b'PE\x00\x00', 'Missing PE header'
           PY
           gh release edit "$RELEASE_TAG" --draft=false --prerelease=false --latest
           echo "Published $RELEASE_TAG with verified SHA256 $EXPECTED_SHA256 and size $EXPECTED_SIZE"
