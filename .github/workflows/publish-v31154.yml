@@ -1,0 +1,61 @@
+name: Prepare and verify Lộc Phát POS V3.11.54 release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/publish-v31154.yml
+      - .github/release-requests/v3.11.54.txt
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: locphat-release-v31154
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: v3.11.54
+      ASSET_NAME: LocPhatPOS_V31154_Setup.exe
+      EXPECTED_SHA256: 8fe5d5c8eca0a333bc5fb9e2ef266f86ccb084a83a24272b5264098ca6d8b5bd
+      EXPECTED_SIZE: "10334208"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare draft release (never publish without a verified installer)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! gh release view "$RELEASE_TAG" --json tagName >/dev/null 2>&1; then
+            cat > "$RUNNER_TEMP/release-notes.md" <<'EOF'
+          # Lộc Phát POS V3.11.54
+
+          Nâng cấp từ V3.11.53: màn đăng nhập, trạng thái tin nhắn POS, giữ tin chưa đọc qua ca, hiệu chỉnh hóa đơn K80 và lưu ảnh QR bền vững theo chi nhánh.
+
+          Trước khi cập nhật trên máy bán hàng, đóng các đơn đang mở và sao lưu dữ liệu.
+
+          Bộ cài chính thức: LocPhatPOS_V31154_Setup.exe.
+          EOF
+            gh release create "$RELEASE_TAG" --target main --draft --title "Lộc Phát POS V3.11.54" --notes-file "$RUNNER_TEMP/release-notes.md"
+          fi
+      - name: Verify installer SHA-256 and publish only after approval request
+        if: ${{ hashFiles('.github/release-requests/v3.11.54.txt') != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/installer"
+          gh release download "$RELEASE_TAG" --pattern "$ASSET_NAME" --dir "$RUNNER_TEMP/installer"
+          artifact="$RUNNER_TEMP/installer/$ASSET_NAME"
+          test -f "$artifact"
+          actual_size="$(stat -c%s "$artifact")"
+          test "$actual_size" = "$EXPECTED_SIZE" || { echo "Installer size mismatch: $actual_size" >&2; exit 1; }
+          actual_sha="$(sha256sum "$artifact" | cut -d ' ' -f1)"
+          test "$actual_sha" = "$EXPECTED_SHA256" || { echo "Installer SHA-256 mismatch: $actual_sha" >&2; exit 1; }
+          gh release edit "$RELEASE_TAG" --draft=false --prerelease=false --latest
+          echo "Verified and published $RELEASE_TAG with SHA-256 $actual_sha"
