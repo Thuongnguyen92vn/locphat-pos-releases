@@ -1,0 +1,38 @@
+name: Verify Production Windows update download (V3.11.54)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/verify-live-windows-update.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check manifest, download actual EXE through Cloudflare, verify checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://locphat-pos-sync.locphatpos.workers.dev/v1/updates/windows'
+          curl --fail --silent --show-error --max-time 20 "$BASE" -o "$RUNNER_TEMP/manifest.json"
+          python3 - "$RUNNER_TEMP/manifest.json" <<'PY'
+          import json,sys
+          d=json.load(open(sys.argv[1]))
+          assert d['ok'] and d['available'] and d['version']=='3.11.54',d
+          assert d['size']==10334208,d
+          assert d['sha256'].lower()=='8fe5d5c8eca0a333bc5fb9e2ef266f86ccb084a83a24272b5264098ca6d8b5bd',d
+          assert d['url']=='https://locphat-pos-sync.locphatpos.workers.dev/v1/updates/windows/download?version=3.11.54',d
+          print('Production manifest: OK')
+          PY
+          curl --fail --location --silent --show-error --retry 2 --max-time 180 \
+            "$BASE/download?version=3.11.54" -o "$RUNNER_TEMP/LocPhatPOS_Setup.exe"
+          size="$(stat -c%s "$RUNNER_TEMP/LocPhatPOS_Setup.exe")"
+          test "$size" = 10334208
+          echo "8fe5d5c8eca0a333bc5fb9e2ef266f86ccb084a83a24272b5264098ca6d8b5bd  $RUNNER_TEMP/LocPhatPOS_Setup.exe" | sha256sum --check --status
+          file "$RUNNER_TEMP/LocPhatPOS_Setup.exe"
+          echo "Production EXE download: OK (10,334,208 bytes, exact SHA256)"
