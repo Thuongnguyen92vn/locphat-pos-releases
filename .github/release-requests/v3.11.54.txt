@@ -1,0 +1,6 @@
+Release publication request for v3.11.54
+Installer: LocPhatPOS_V31154_Setup.exe
+Size: 10334208
+SHA256: 8fe5d5c8eca0a333bc5fb9e2ef266f86ccb084a83a24272b5264098ca6d8b5bd
+Approval: User provided installer to this GitHub draft and asked to complete deployment through connected GitHub.
+Policy: workflow verifies SHA256 and size before publication; if verification fails, leave as draft.
