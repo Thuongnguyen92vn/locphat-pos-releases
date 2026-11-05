@@ -1,0 +1,59 @@
+name: Prepare and verify Lộc Phát POS V3.11.55 release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/publish-v31155.yml
+      - .github/release-requests/v3.11.55.txt
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: locphat-release-v31155
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: v3.11.55
+      ASSET_NAME: LocPhatPOS_V31155_Setup.exe
+      EXPECTED_SHA256: abfcffcb4c8df2b58b08bb89fc9a3b6d9058786ef50457a72179672d1dcfc1f8
+      EXPECTED_SIZE: "10369024"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare draft only (no automatic publication without verified EXE)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! gh release view "$RELEASE_TAG" --json tagName >/dev/null 2>&1; then
+            cat > "$RUNNER_TEMP/release-notes.md" <<'EOF'
+          # Lộc Phát POS V3.11.55
+
+          Nâng cấp trực tuyến từ V3.11.54: sửa cập nhật online, báo cáo Cloud theo chi nhánh, đồng bộ QR D1 và lưu offline, cải thiện thông báo chat, hiệu chỉnh in K80 và chế độ giao diện Rõ nét.
+
+          Trước khi cài trên máy bán hàng, hoàn tất các đơn đang mở và sao lưu dữ liệu. Cần nghiệm thu thêm trên Windows thực tế (âm báo/toast, K80, hai cửa sổ cập nhật).
+
+          Bộ cài chính thức: LocPhatPOS_V31155_Setup.exe
+          EOF
+            gh release create "$RELEASE_TAG" --target main --draft --title "Lộc Phát POS V3.11.55" --notes-file "$RUNNER_TEMP/release-notes.md"
+          fi
+      - name: Verify actual binary size and SHA256 before public release
+        if: ${{ hashFiles('.github/release-requests/v3.11.55.txt') != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/installer"
+          gh release download "$RELEASE_TAG" --pattern "$ASSET_NAME" --dir "$RUNNER_TEMP/installer"
+          p="$RUNNER_TEMP/installer/$ASSET_NAME"
+          test -f "$p"
+          test "$(stat -c%s "$p")" = "$EXPECTED_SIZE" || { echo "Installer wrong size" >&2; exit 1; }
+          test "$(sha256sum "$p" | cut -d ' ' -f1)" = "$EXPECTED_SHA256" || { echo "Installer SHA256 mismatch" >&2; exit 1; }
+          gh release edit "$RELEASE_TAG" --draft=false --prerelease=false --latest
+          echo "V3.11.55 verified and published with SHA256 $EXPECTED_SHA256"
