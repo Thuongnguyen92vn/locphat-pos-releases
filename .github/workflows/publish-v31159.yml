@@ -1,0 +1,78 @@
+name: Prepare and verify Lộc Phát POS V3.11.59 release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/publish-v31159.yml
+      - .github/release-requests/v3.11.59.txt
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: locphat-release-v31159
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: v3.11.59
+      ASSET_NAME: LocPhatPOS_V31159_Setup.exe
+      EXPECTED_SHA256: 4aea2f1f18a4f8acb3342d483f8a487d2db6eac31c5c62626d7e85fba5dfb600
+      EXPECTED_SIZE: "10469376"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare draft release; never publish without verified Windows EXE
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! gh release view "$RELEASE_TAG" --json tagName >/dev/null 2>&1; then
+            cat > "$RUNNER_TEMP/release-notes.md" <<'EOF'
+          # Lộc Phát POS V3.11.59
+
+          Nâng cấp Windows từ V3.11.56, tích hợp các cải tiến đã thử nghiệm của V3.11.57 và V3.11.58.
+
+          - Sửa Hover bị cắt ở hàng thẻ món đầu, tăng phản hồi giao diện và loại bỏ ghi đè dữ liệu khi chuyển kỳ Báo cáo.
+          - Khôi phục Báo cáo, lọc thu ngân và đồng nhất mã hóa đơn giữa danh sách, popup và Cloud.
+          - Cho xem trước/in lại hóa đơn bán từ máy khác; hủy theo quyền quản trị và có lý do. Không mở sửa toàn bộ nội dung hóa đơn từ máy khác.
+          - Khắc phục nguy cơ hóa đơn đã hủy bị gửi trở lại Cloud khi máy offline đồng bộ.
+          - Giữ in tem 50x30 và cơ chế chỉnh sửa mẫu đã lưu; giữ đường in K80 từ V3.11.58.
+          - Cải thiện cơ chế cài đè khi phiên POS cũ còn chạy nền.
+
+          Chưa nghiệm thu trên K80 thật, cài đè với đơn nháp và hai máy bán hàng đồng thời: cần kiểm tra thực tế trên máy quán. Chỉ cập nhật khi hoàn tất đơn đang mở; không gỡ ứng dụng hoặc xóa dữ liệu SQLite.
+
+          Bộ cài: LocPhatPOS_V31159_Setup.exe
+          SHA-256: 4aea2f1f18a4f8acb3342d483f8a487d2db6eac31c5c62626d7e85fba5dfb600
+          EOF
+            gh release create "$RELEASE_TAG" --target main --draft --title "Lộc Phát POS V3.11.59" --notes-file "$RUNNER_TEMP/release-notes.md"
+          fi
+      - name: Verify exact Windows executable before publication
+        if: ${{ hashFiles('.github/release-requests/v3.11.59.txt') != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/installer"
+          gh release download "$RELEASE_TAG" --pattern "$ASSET_NAME" --dir "$RUNNER_TEMP/installer"
+          p="$RUNNER_TEMP/installer/$ASSET_NAME"
+          test -f "$p"
+          test "$(stat -c%s "$p")" = "$EXPECTED_SIZE" || { echo "::error::Installer size mismatch"; exit 1; }
+          actual="$(sha256sum "$p" | cut -d ' ' -f1)"
+          test "$actual" = "$EXPECTED_SHA256" || { echo "::error::Installer SHA256 mismatch"; exit 1; }
+          python3 - "$p" <<'PY'
+          import sys
+          p = sys.argv[1]
+          with open(p,'rb') as f:
+              assert f.read(2) == b'MZ', 'Not a Windows executable'
+              f.seek(0x3c)
+              pos=int.from_bytes(f.read(4),'little')
+              f.seek(pos)
+              assert f.read(4) == b'PE\x00\x00', 'Missing PE header'
+          PY
+          gh release edit "$RELEASE_TAG" --draft=false --prerelease=false --latest
+          echo "Published $RELEASE_TAG with verified SHA256 $EXPECTED_SHA256 and size $EXPECTED_SIZE"
