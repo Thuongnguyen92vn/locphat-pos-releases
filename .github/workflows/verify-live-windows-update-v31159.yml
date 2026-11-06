@@ -1,5 +1,10 @@
 name: Verify Production Windows update download (V3.11.59)
 on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/verify-live-windows-update-v31159.yml
+      - .github/verify-requests/v3.11.59.txt
   workflow_dispatch:
   release:
     types: [published]
