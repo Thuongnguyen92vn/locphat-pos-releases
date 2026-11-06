@@ -1,0 +1,6 @@
+version=v3.11.59
+asset=LocPhatPOS_V31159_Setup.exe
+expected_size=10469376
+sha256=4aea2f1f18a4f8acb3342d483f8a487d2db6eac31c5c62626d7e85fba5dfb600
+requested_action=verify_and_publish
+release_id=436044931
