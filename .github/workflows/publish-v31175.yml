@@ -1,0 +1,125 @@
+name: Publish verified Lộc Phát POS V3.11.75 Windows update
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/publish-v31175.yml
+      - .github/release-requests/v3.11.75.txt
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: locphat-release-v31175
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: v3.11.75
+      ASSET_NAME: LocPhatPOS_V31175_Setup.exe
+      EXPECTED_SIZE: "10748928"
+      EXPECTED_SHA256: 746a6cb512d0a13568a6826257cf28ae82f91e7985769be6bcde50d119d99323
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create a DRAFT (never advertise an unverified installer)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! gh release view "$RELEASE_TAG" --json tagName >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --target main --draft \
+              --title "Lộc Phát POS V3.11.75" \
+              --notes-file .github/release-requests/v3.11.75.txt
+          fi
+          echo "Release prepared: $RELEASE_TAG"
+
+      - name: Publish ONLY after validating GitHub-computed SHA256 of uploaded EXE
+        shell: bash
+        run: |
+          set -euo pipefail
+          # GitHub draft assets sometimes return HTTP 404 to tag-based binary download.
+          # The authenticated releases-list API returns draft asset metadata,
+          # including GitHub's own cryptographic digest of the uploaded bytes.
+          get_release() {
+            # Newly created draft releases can take a few seconds to show in
+            # the authenticated releases list. Treat this as eventual consistency,
+            # not as a broken installer; never publish without a matched asset.
+            local draft=""
+            for attempt in $(seq 1 12); do
+              draft="$(gh api "repos/$GH_REPO/releases?per_page=100" | jq -c --arg v "$RELEASE_TAG" '.[] | select(.tag_name == $v)' || true)"
+              if [ -n "$draft" ]; then
+                printf '%s\n' "$draft"
+                return 0
+              fi
+              sleep 2
+            done
+            echo "::error::GitHub draft release $RELEASE_TAG did not become readable" >&2
+            return 1
+          }
+          release_json="$(get_release)"
+          if printf '%s' "$release_json" | jq -e --arg n "$ASSET_NAME" '.assets[] | select(.name == $n)' >/dev/null; then
+            current_name="$ASSET_NAME"
+          else
+            echo "::notice::DRAFT only: exact V3.11.75 installer not attached. No update is published."
+            exit 0
+          fi
+          asset="$(printf '%s' "$release_json" | jq -ce --arg n "$current_name" '.assets[] | select(.name == $n)')"
+          actual_size="$(printf '%s' "$asset" | jq -r '.size')"
+          actual_digest="$(printf '%s' "$asset" | jq -r '.digest')"
+          asset_id="$(printf '%s' "$asset" | jq -r '.id')"
+          test "$actual_size" = "$EXPECTED_SIZE" || { echo "::error::Asset size mismatch: $actual_size"; exit 1; }
+          test "$actual_digest" = "sha256:$EXPECTED_SHA256" || { echo "::error::GitHub-computed SHA256 mismatch: $actual_digest"; exit 1; }
+          test "$asset_id" != "null" && test -n "$asset_id" || { echo "::error::Asset ID missing"; exit 1; }
+          echo "GitHub confirms exact binary: $current_name / $actual_size bytes / $actual_digest"
+
+          if [ "$current_name" != "$ASSET_NAME" ]; then
+            test "$(printf '%s' "$release_json" | jq -r '.draft')" = "true" || { echo "::error::Cannot rename asset in already-published release"; exit 1; }
+            gh api --method PATCH "repos/$GH_REPO/releases/assets/$asset_id" -f name="$ASSET_NAME" >/dev/null
+            echo "Renamed verified asset to $ASSET_NAME (bytes unchanged)"
+          fi
+
+          release_json="$(get_release)"
+          verified="$(printf '%s' "$release_json" | jq -ce --arg n "$ASSET_NAME" '.assets[] | select(.name == $n)')"
+          test "$(printf '%s' "$verified" | jq -r '.id')" = "$asset_id" || { echo "::error::Asset identity changed"; exit 1; }
+          test "$(printf '%s' "$verified" | jq -r '.size')" = "$EXPECTED_SIZE" || { echo "::error::Wrong release asset size"; exit 1; }
+          test "$(printf '%s' "$verified" | jq -r '.digest')" = "sha256:$EXPECTED_SHA256" || { echo "::error::Wrong release asset SHA256"; exit 1; }
+          if [ "$(printf '%s' "$release_json" | jq -r '.draft')" = "true" ]; then
+            gh release edit "$RELEASE_TAG" --draft=false --prerelease=false --latest
+          fi
+          echo "PUBLISHED V3.11.75 only after exact GitHub asset digest and size verification"
+
+      - name: Verify production Cloudflare updater manifest AFTER publication
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(gh release view "$RELEASE_TAG" --json isDraft --jq '.isDraft')"
+          if [ "$status" != "false" ]; then
+            echo "::notice::Still DRAFT: no installer uploaded; production updater intentionally remains unchanged."
+            exit 0
+          fi
+          BASE='https://locphat-pos-sync.locphatpos.workers.dev/v1/updates/windows'
+          for i in $(seq 1 24); do
+            if curl --fail --silent --show-error --max-time 20 "$BASE" -o "$RUNNER_TEMP/manifest.json" \
+                && python3 - "$RUNNER_TEMP/manifest.json" "$EXPECTED_SIZE" "$EXPECTED_SHA256" <<'PY'
+          import json,sys
+          d=json.load(open(sys.argv[1]))
+          assert d.get('ok') and d.get('available') and d.get('version')=='3.11.75',d
+          assert d.get('size')==int(sys.argv[2]),d
+          assert d.get('sha256','').lower()==sys.argv[3],d
+          assert d.get('url')=='https://locphat-pos-sync.locphatpos.workers.dev/v1/updates/windows/download?version=3.11.75',d
+          print('Production updater MANIFEST confirmed V3.11.75, exact SHA256/size')
+          PY
+            then
+              exit 0
+            fi
+            echo "Waiting for Cloudflare/GitHub release cache to refresh ($i/24)..."
+            sleep 15
+          done
+          echo "::error::Production updater does not yet advertise verified V3.11.75"
+          exit 1

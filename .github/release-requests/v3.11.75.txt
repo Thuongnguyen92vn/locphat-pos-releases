@@ -1,0 +1,27 @@
+# Lộc Phát POS V3.11.75
+
+**Bản phát hành Windows x64 — không có chữ TEST.** Bản phát hành tích lũy các thay đổi V3.11.71–V3.11.75 trên nền công khai V3.11.70.
+
+## Các thay đổi chính
+- **V3.11.71:** Thông báo tin nhắn Windows không tự đóng, chỉ tắt khi chọn **Đang bận** hoặc **Trả lời**; logo gốc Lộc Phát; icon chat và Đồng bộ trên Header cân đối; tiêu đề chat **Liên lạc**.
+- **V3.11.72:** Căn lại hàng tổng kết Chi tiết hóa đơn ở Khuyến mãi, Tổng quan và Báo cáo; cải thiện thẻ Hoạt động gần đây (giữ thời gian tương đối); thu gọn tooltip biểu đồ; khắc phục ô gợi ý đổi thông tin tài khoản bị che.
+- **V3.11.73:** Điều chỉnh vòng đời cửa sổ khi nhấn X để tránh trang lỗi 127.0.0.1; thống nhất một icon cảnh báo trong nội dung popup; thêm mục **Tất cả** trước các nhóm món.
+- **V3.11.74:** Sửa kiểm tra danh tính POS chính trên các bản Worker cũ/mới để Thu ngân tại POS chính thấy chat; không cấp quyền chat cho máy phụ.
+- **V3.11.75:** Tách Cài đặt → Bảo mật thành 4 cột độc lập: Đổi tên hiển thị, Đổi tên đăng nhập, Đổi mật khẩu, Email khôi phục; tự thu về 2/1 cột khi vùng hiển thị hẹp.
+
+## Bảo toàn chức năng và dữ liệu
+- Không yêu cầu gỡ ứng dụng, không xóa hoặc ghi đè SQLite, hóa đơn, đơn nháp, mẫu in hay cấu hình chi nhánh.
+- Giữ nguyên phân quyền chat theo **thiết bị POS chính**: Thu ngân chỉ chat ở POS chính; Admin trên máy khác dùng kênh quản lý. Không triển khai thay đổi vai trò chat theo tài khoản đăng nhập trên POS chính.
+- Không thay đổi Worker/Cloud trong bản phát hành Windows này.
+
+## Kiểm thử và lưu ý
+- Các bài Go, go vet, kiểm tra JavaScript, kiểm thử trình duyệt các màn hình liên quan và build Windows x64 theo báo cáo bàn giao V3.11.75: **PASS**.
+- Có **1 bài kiểm thử hợp đồng cũ** không đạt ở cả V3.11.74 và V3.11.75 do yêu cầu nhãn giao diện đã lỗi thời; xem báo cáo bàn giao.
+- **Chưa nghiệm thu trên Windows thật** cho đóng cửa sổ bằng X, âm báo/thông báo chat và thiết bị in K80/tem. Nên cài thử trước khi cập nhật các máy đang bán hàng; sao lưu dữ liệu và cấu hình trước cập nhật.
+
+## Bộ cài được kiểm soát toàn vẹn
+- Tên: `LocPhatPOS_V31175_Setup.exe`
+- Kích thước: **10.748.928 byte**
+- SHA-256: `746a6cb512d0a13568a6826257cf28ae82f91e7985769be6bcde50d119d99323`
+
+GitHub Release chỉ được công khai khi asset khớp **cả tên, kích thước và SHA-256**. Cloudflare updater sau đó phải trả chính xác V3.11.75 mới được coi là phát hành thành công.
