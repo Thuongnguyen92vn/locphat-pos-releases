@@ -111,10 +111,10 @@ jobs:
                 && python3 - "$RUNNER_TEMP/manifest.json" "$EXPECTED_SIZE" "$EXPECTED_SHA256" <<'PY'
           import json,sys
           d=json.load(open(sys.argv[1]))
-          assert d.get('ok') and d.get('available') and d.get('version')=='3.11.68',d
+          assert d.get('ok') and d.get('available') and d.get('version')=='3.11.70',d
           assert d.get('size')==int(sys.argv[2]),d
           assert d.get('sha256','').lower()==sys.argv[3],d
-          assert d.get('url')=='https://locphat-pos-sync.locphatpos.workers.dev/v1/updates/windows/download?version=3.11.68',d
+          assert d.get('url')=='https://locphat-pos-sync.locphatpos.workers.dev/v1/updates/windows/download?version=3.11.70',d
           print('Production updater MANIFEST confirmed V3.11.70, exact SHA256/size')
           PY
             then
