@@ -1,0 +1,16 @@
+# Lộc Phát POS V3.11.68 TEST
+
+Nâng cấp Windows từ các bản trước, bảo toàn SQLite, mẫu in và cấu hình chi nhánh.
+
+- VĐ072: phân biệt màu hóa đơn/hoạt động chờ đồng bộ.
+- VĐ073: STT Thu ngân theo ngày và chi nhánh; bỏ tiền tố HD khi hiển thị Báo cáo/Tổng quan; K80 in thêm số đơn.
+- VĐ074: STT trên tem lấy đúng số đơn Thu ngân, mọi ly cùng đơn có cùng STT, giữ 1/n.
+- VĐ075: chỉ máy POS chính được chat như Thu ngân; Admin trên máy khác chat theo quyền quản lý; bỏ Khôi phục quyền chat.
+
+**Đây là bản TEST:** đã vượt Go/Chromium/Cloud CI; chưa nghiệm thu với máy in K80, tem 50×30 và chat trên hai máy thật. Hoàn thành đơn đang mở và sao lưu SQLite/mẫu in/cấu hình trước khi cài. Không gỡ ứng dụng hay xóa dữ liệu bán hàng.
+
+Asset bắt buộc: `LocPhatPOS_V31168_Setup.exe`
+Kích thước: `10705408` bytes
+SHA-256: `d327994200a45b795e1253ce3d59091691d410059d7e70a40defac52d102f5fd`
+
+GitHub Actions chỉ được công khai bản phát hành sau khi kiểm tra chính xác tên, kích thước, định dạng Windows PE và SHA-256.
