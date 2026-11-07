@@ -43,10 +43,28 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # The operator uploaded the verified TEST-named binary to the draft.
+          # Safely promote its asset name (without changing bytes) to the exact
+          # name expected by the existing Windows updater. Never promote an
+          # unverified release: perform size/digest checks before and after.
           if ! gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' | grep -Fxq "$ASSET_NAME"; then
-            echo "::notice::DRAFT only: upload $ASSET_NAME to the release Assets, then re-run this workflow/job."
-            echo "No automatic update is announced to other computers until this file is verified."
-            exit 0
+            staged="LocPhatPOS_V31168_Setup_TEST.exe"
+            if gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' | grep -Fxq "$staged"; then
+              test "$(gh release view "$RELEASE_TAG" --json isDraft --jq '.isDraft')" = true || { echo "::error::Cannot rename a non-draft release asset"; exit 1; }
+              mkdir -p "$RUNNER_TEMP/preflight"
+              gh release download "$RELEASE_TAG" --pattern "$staged" --dir "$RUNNER_TEMP/preflight"
+              p="$RUNNER_TEMP/preflight/$staged"
+              test "$(stat -c %s "$p")" = "$EXPECTED_SIZE" || { echo "::error::Staged asset size mismatch"; exit 1; }
+              echo "$EXPECTED_SHA256  $p" | sha256sum --check --status || { echo "::error::Staged asset SHA256 mismatch"; exit 1; }
+              asset_id="$(gh api "repos/$GH_REPO/releases/tags/$RELEASE_TAG" --jq '.assets[] | select(.name == "LocPhatPOS_V31168_Setup_TEST.exe") | .id')"
+              test -n "$asset_id" || { echo "::error::Staged asset ID not found"; exit 1; }
+              gh api --method PATCH "repos/$GH_REPO/releases/assets/$asset_id" -f name="$ASSET_NAME" >/dev/null
+              echo "Promoted verified TEST-named asset to updater-compatible $ASSET_NAME"
+            else
+              echo "::notice::DRAFT only: upload $ASSET_NAME to the release Assets, then re-run this workflow/job."
+              echo "No automatic update is announced to other computers until this file is verified."
+              exit 0
+            fi
           fi
           mkdir -p "$RUNNER_TEMP/installer"
           gh release download "$RELEASE_TAG" --pattern "$ASSET_NAME" --dir "$RUNNER_TEMP/installer"
