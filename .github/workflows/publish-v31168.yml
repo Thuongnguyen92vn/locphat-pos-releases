@@ -39,53 +39,49 @@ jobs:
           fi
           echo "Release prepared: $RELEASE_TAG"
 
-      - name: Publish ONLY after checking the exact Windows installer
+      - name: Publish ONLY after validating GitHub-computed SHA256 of uploaded EXE
         shell: bash
         run: |
           set -euo pipefail
-          # The operator uploaded the verified TEST-named binary to the draft.
-          # Safely promote its asset name (without changing bytes) to the exact
-          # name expected by the existing Windows updater. Never promote an
-          # unverified release: perform size/digest checks before and after.
-          if ! gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' | grep -Fxq "$ASSET_NAME"; then
-            staged="LocPhatPOS_V31168_Setup_TEST.exe"
-            if gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' | grep -Fxq "$staged"; then
-              test "$(gh release view "$RELEASE_TAG" --json isDraft --jq '.isDraft')" = true || { echo "::error::Cannot rename a non-draft release asset"; exit 1; }
-              mkdir -p "$RUNNER_TEMP/preflight"
-              gh release download "$RELEASE_TAG" --pattern "$staged" --dir "$RUNNER_TEMP/preflight"
-              p="$RUNNER_TEMP/preflight/$staged"
-              test "$(stat -c %s "$p")" = "$EXPECTED_SIZE" || { echo "::error::Staged asset size mismatch"; exit 1; }
-              echo "$EXPECTED_SHA256  $p" | sha256sum --check --status || { echo "::error::Staged asset SHA256 mismatch"; exit 1; }
-              asset_id="$(gh api "repos/$GH_REPO/releases/tags/$RELEASE_TAG" --jq '.assets[] | select(.name == "LocPhatPOS_V31168_Setup_TEST.exe") | .id')"
-              test -n "$asset_id" || { echo "::error::Staged asset ID not found"; exit 1; }
-              gh api --method PATCH "repos/$GH_REPO/releases/assets/$asset_id" -f name="$ASSET_NAME" >/dev/null
-              echo "Promoted verified TEST-named asset to updater-compatible $ASSET_NAME"
-            else
-              echo "::notice::DRAFT only: upload $ASSET_NAME to the release Assets, then re-run this workflow/job."
-              echo "No automatic update is announced to other computers until this file is verified."
-              exit 0
-            fi
+          # GitHub draft assets sometimes return HTTP 404 to tag-based binary download.
+          # The authenticated releases-list API returns draft asset metadata,
+          # including GitHub's own cryptographic digest of the uploaded bytes.
+          get_release() {
+            gh api "repos/$GH_REPO/releases?per_page=30" | jq -ce --arg v "$RELEASE_TAG" '.[] | select(.tag_name == $v)'
+          }
+          release_json="$(get_release)"
+          if printf '%s' "$release_json" | jq -e --arg n "$ASSET_NAME" '.assets[] | select(.name == $n)' >/dev/null; then
+            current_name="$ASSET_NAME"
+          elif printf '%s' "$release_json" | jq -e '.assets[] | select(.name == "LocPhatPOS_V31168_Setup_TEST.exe")' >/dev/null; then
+            current_name="LocPhatPOS_V31168_Setup_TEST.exe"
+          else
+            echo "::notice::DRAFT only: exact V3.11.68 installer not attached. No update is published."
+            exit 0
           fi
-          mkdir -p "$RUNNER_TEMP/installer"
-          gh release download "$RELEASE_TAG" --pattern "$ASSET_NAME" --dir "$RUNNER_TEMP/installer"
-          p="$RUNNER_TEMP/installer/$ASSET_NAME"
-          test -f "$p"
-          actual_size="$(stat -c %s "$p")"
-          test "$actual_size" = "$EXPECTED_SIZE" || { echo "::error::Wrong installer size: $actual_size"; exit 1; }
-          actual_sha="$(sha256sum "$p" | cut -d ' ' -f1)"
-          test "$actual_sha" = "$EXPECTED_SHA256" || { echo "::error::Windows installer SHA-256 mismatch: $actual_sha"; exit 1; }
-          python3 - "$p" <<'PY'
-          import sys
-          p=sys.argv[1]
-          with open(p,'rb') as f:
-              if f.read(2)!=b'MZ': raise SystemExit('Not a Windows PE executable (MZ)')
-              f.seek(0x3c)
-              offset=int.from_bytes(f.read(4),'little')
-              f.seek(offset)
-              if f.read(4)!=b'PE\x00\x00': raise SystemExit('Missing Windows PE signature')
-          PY
-          gh release edit "$RELEASE_TAG" --draft=false --prerelease=false --latest
-          echo "VERIFIED AND PUBLISHED: $RELEASE_TAG, size=$actual_size, sha256=$actual_sha"
+          asset="$(printf '%s' "$release_json" | jq -ce --arg n "$current_name" '.assets[] | select(.name == $n)')"
+          actual_size="$(printf '%s' "$asset" | jq -r '.size')"
+          actual_digest="$(printf '%s' "$asset" | jq -r '.digest')"
+          asset_id="$(printf '%s' "$asset" | jq -r '.id')"
+          test "$actual_size" = "$EXPECTED_SIZE" || { echo "::error::Asset size mismatch: $actual_size"; exit 1; }
+          test "$actual_digest" = "sha256:$EXPECTED_SHA256" || { echo "::error::GitHub-computed SHA256 mismatch: $actual_digest"; exit 1; }
+          test "$asset_id" != "null" && test -n "$asset_id" || { echo "::error::Asset ID missing"; exit 1; }
+          echo "GitHub confirms exact binary: $current_name / $actual_size bytes / $actual_digest"
+
+          if [ "$current_name" != "$ASSET_NAME" ]; then
+            test "$(printf '%s' "$release_json" | jq -r '.draft')" = "true" || { echo "::error::Cannot rename asset in already-published release"; exit 1; }
+            gh api --method PATCH "repos/$GH_REPO/releases/assets/$asset_id" -f name="$ASSET_NAME" >/dev/null
+            echo "Renamed verified asset to $ASSET_NAME (bytes unchanged)"
+          fi
+
+          release_json="$(get_release)"
+          verified="$(printf '%s' "$release_json" | jq -ce --arg n "$ASSET_NAME" '.assets[] | select(.name == $n)')"
+          test "$(printf '%s' "$verified" | jq -r '.id')" = "$asset_id" || { echo "::error::Asset identity changed"; exit 1; }
+          test "$(printf '%s' "$verified" | jq -r '.size')" = "$EXPECTED_SIZE" || { echo "::error::Wrong release asset size"; exit 1; }
+          test "$(printf '%s' "$verified" | jq -r '.digest')" = "sha256:$EXPECTED_SHA256" || { echo "::error::Wrong release asset SHA256"; exit 1; }
+          if [ "$(printf '%s' "$release_json" | jq -r '.draft')" = "true" ]; then
+            gh release edit "$RELEASE_TAG" --draft=false --prerelease=false --latest
+          fi
+          echo "PUBLISHED V3.11.68 only after exact GitHub asset digest and size verification"
 
       - name: Verify production Cloudflare updater manifest AFTER publication
         shell: bash
