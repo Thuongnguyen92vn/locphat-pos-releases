@@ -1,0 +1,25 @@
+# Lộc Phát POS V3.11.70 TEST
+
+**Kênh TEST:** cập nhật từ các bản Windows cũ, bao gồm V3.11.68 và V3.11.69. Bảo toàn dữ liệu SQLite, đơn nháp, mẫu in và thiết lập chi nhánh.
+
+## Điểm mới V3.11.70
+- VĐ083: Admin đăng nhập trên máy POS chính không còn tự nhận thông báo Windows cho tin vừa gửi từ chính POS; Admin trên máy khác vẫn có thông báo tin đến.
+- Thông báo Windows ở góc dưới phải tự biến mất sau **6,5 giây**. Nháy viền dừng sau khoảng **2,7 giây**.
+- Khung thông báo và hai nút được **bo góc**, bỏ đường viền cứng; giữ âm báo và nút Trả lời mở đúng chat.
+
+## Tích lũy từ V3.11.69
+- VĐ076–082: thông báo Windows, popover chi tiết chat, icon cảnh báo đỏ, rút gọn thông báo hủy, lọc hoạt động và cuộn đúng vị trí, sửa cắt chữ bộ lọc, căn dòng Thanh toán.
+
+## Kiểm thử và lưu ý
+- Go tests, Go vet, kiểm tra JavaScript và hồi quy Chromium V3.11.59–V3.11.70: **PASS**.
+- Windows POS x64 và bộ cài: **biên dịch PASS, kiểm tra PE GUI PASS**.
+- **Chưa nghiệm thu âm thanh, popup tự đóng và chat 2 thiết bị trên máy Windows thật**. Kiểm tra thực tế trên máy thử trước khi cập nhật máy đang bán.
+- Trước khi cập nhật: hoàn thành đơn đang mở, sao lưu SQLite và mẫu in/cấu hình; không gỡ chương trình hay xóa dữ liệu.
+
+## Thông tin tệp cài
+- Tệp yêu cầu: `LocPhatPOS_V31170_Setup.exe`
+- Tệp gốc trước khi đổi tên trên Release: `LocPhatPOS_V31170_Setup_TEST.exe`
+- Size: **10732544** bytes
+- SHA-256: `b5b57d062fc07d4075c0effca4646058ab1ed0322df435b929adb4051bf87685`
+
+Bộ cài chỉ được công khai sau khi GitHub Actions xác minh chính xác tên, SHA-256 và kích thước tệp.
