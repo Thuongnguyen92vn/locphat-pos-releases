@@ -1,0 +1,17 @@
+# Lộc Phát POS V3.11.88 — Cập nhật Windows
+
+**Cải thiện giao diện Quyền tin nhắn (VĐ13–VĐ17)** trên nền V3.11.87:
+
+- Bỏ bộ chọn chi nhánh trùng lặp; tự dùng chi nhánh đã chọn ở thanh trên cùng.
+- Bỏ dòng chú thích không cần thiết ở cuối cửa sổ.
+- Bỏ hai nút “Chọn tất cả/Bỏ tất cả” trong tab nhận tin, giữ công tắc và ô chọn chi nhánh.
+- Căn phải nút “Xong” với “Lưu lựa chọn”.
+- Tăng nhẹ độ tương phản các đường viền, tab, văn bản phụ và nút.
+
+Không thay đổi SQLite, cấu trúc hóa đơn, thanh toán, mẫu in, API Cloud hoặc logic phân quyền. Đã vượt kiểm thử tự động Go, JavaScript và Chromium. Kiểm thử trên máy POS thật chưa được xác nhận.
+
+**Tệp được chấp nhận duy nhất:** `LocPhatPOS_V31188_Setup.exe`  
+**Kích thước:** 10982912 byte  
+**SHA-256:** `1dff896bb9ec3a01c62586ebc999dd626c1ae7f3fbd4434cfcec580fd0e20aa4`
+
+Quy trình tự động chỉ công khai bản cập nhật sau khi đối chiếu kích thước, SHA-256 và tên tệp. Không tự ý xóa dữ liệu bán hàng.
