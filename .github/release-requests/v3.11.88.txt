@@ -15,3 +15,5 @@ Không thay đổi SQLite, cấu trúc hóa đơn, thanh toán, mẫu in, API Cl
 **SHA-256:** `1dff896bb9ec3a01c62586ebc999dd626c1ae7f3fbd4434cfcec580fd0e20aa4`
 
 Quy trình tự động chỉ công khai bản cập nhật sau khi đối chiếu kích thước, SHA-256 và tên tệp. Không tự ý xóa dữ liệu bán hàng.
+
+**Xác minh tệp trước phát hành (10/11/2026):** GitHub Release asset `LocPhatPOS_V31188_Setup.exe` đã được tải lên đầy đủ; kích thước và SHA-256 đối chiếu với bộ cài chuẩn đều khớp. Workflow sẽ tự kiểm tra lại và chỉ công khai khi vượt bước xác minh.
