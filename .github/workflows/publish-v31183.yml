@@ -24,7 +24,7 @@ jobs:
       GH_REPO: ${{ github.repository }}
       RELEASE_TAG: v3.11.83
       ASSET_NAME: LocPhatPOS_V31183_Setup.exe
-      UPLOADED_NAME: LocPhatPOS_Setup v31183.exe
+      UPLOADED_NAME: LocPhatPOS_Setup.v31183.exe
       EXPECTED_SIZE: "10946048"
       EXPECTED_SHA256: 038b8ab52588a0d65743f7a0538969b2c8bda094579162a1ccc30998d900e1d5
 
@@ -72,7 +72,7 @@ jobs:
             gh api --method PATCH "repos/$GH_REPO/releases/assets/$asset_id" -f name="$ASSET_NAME" >/dev/null
           fi
           # Fetch metadata again after rename and refuse all mismatches.
-          release_json="$(gh api "repos/$GH_REPO/releases/tags/$RELEASE_TAG")"
+          release_json="$(gh api "repos/$GH_REPO/releases?per_page=100" | jq -c --arg t "$RELEASE_TAG" '.[] | select(.tag_name == $t)')"
           asset="$(printf '%s' "$release_json" | jq -ce --arg name "$ASSET_NAME" '.assets[] | select(.name==$name)')"
           test "$(printf '%s' "$asset" | jq -r '.id')" = "$asset_id"
           test "$(printf '%s' "$asset" | jq -r '.size')" = "$EXPECTED_SIZE"
