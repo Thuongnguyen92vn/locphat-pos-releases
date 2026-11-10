@@ -1,0 +1,23 @@
+# Lộc Phát POS V3.11.83 — Windows x64
+
+Phát hành cập nhật từ V3.11.75 và các bản cũ theo cơ chế kiểm tra phiên bản của POS qua Cloudflare Worker.
+
+## Gói cài đặt gốc
+- Tên tệp được cung cấp: `LocPhatPOS_Setup v31183.exe`
+- Tên chuẩn trên GitHub Release: `LocPhatPOS_V31183_Setup.exe`
+- Kích thước: **10.946.048 byte**
+- SHA-256: `038b8ab52588a0d65743f7a0538969b2c8bda094579162a1ccc30998d900e1d5`
+- Định dạng: Windows PE x64, GUI, module `locphat/installer`.
+
+## Bảo vệ cập nhật
+- Chỉ công khai bản phát hành sau khi GitHub xác nhận **đúng từng byte** qua SHA-256 và kích thước; không công khai khi chưa có tệp cài hoặc hash sai.
+- Ứng dụng đối chiếu SHA-256 trước khi chạy bộ cài.
+- Không sửa Cloud Worker, mã nguồn POS, SQLite, hóa đơn, dữ liệu chi nhánh hoặc mẫu in qua quy trình phát hành.
+- Trước khi cài tại quán: hoàn tất đơn đang mở và sao lưu dữ liệu SQLite, cấu hình, mẫu in.
+
+## Giới hạn nghiệm thu
+- Đã kiểm tra định dạng tệp PE x64/GUI và module cài đặt của tệp đính kèm.
+- Chưa nghiệm thu cài đè và rollback trên Windows đang vận hành, in K80, in tem, đồng bộ SQLite → Cloudflare D1 → máy quản lý.
+- Không coi thao tác đưa tệp lên GitHub hay bộ kiểm thử tự động là bằng chứng nghiệm thu trên máy thật.
+
+**Cơ chế cập nhật:** Sau khi GitHub Release xuất bản với tệp chuẩn và Worker trả manifest V3.11.83 phù hợp, các máy POS cũ mới có thể nhận cập nhật tự động theo chu kỳ kiểm tra.
