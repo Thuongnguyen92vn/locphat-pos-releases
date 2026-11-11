@@ -1,0 +1,23 @@
+# Lộc Phát POS Windows V3.11.99 — yêu cầu phát hành tự động
+
+Nâng cấp từ V3.11.98 / các phiên bản Windows cũ, không thay đổi dữ liệu SQLite.
+
+## Thay đổi giới hạn trong V3.11.99
+- VĐ59: căn bút chì sửa tài khoản đang đăng nhập thẳng vị trí nút sửa của những tài khoản khác; nhấp chuyển về Bảo mật.
+- VĐ60: căn tiêu đề Thao tác giữa nhóm nút Sửa/Lịch sử ở bảng Quản lý chi nhánh.
+- VĐ61: tối ưu phân bổ chiều rộng cột Quản lý gian hàng và bảng chi nhánh mở rộng của Admin hệ thống.
+
+## Điều kiện phát hành và an toàn
+- Windows V3.11.99 được cross-build GUI và đã đạt 21/21 kiểm thử trọng điểm, 9/9 kiểm tra giao diện ở ba cỡ màn hình; Go trọng điểm PASS.
+- Node toàn phần 42/44 PASS, Go toàn phần còn một bài contract cũ không đạt (đã tồn tại ở V3.11.98).
+- Chưa nghiệm thu cài đè với SQLite có dữ liệu bán hàng và máy in K80/tem thật. Chỉ công bố sau khi người quản lý chấp nhận trạng thái kiểm thử và bộ cài vượt kiểm tra SHA-256.
+- Installer sao lưu các tệp SQLite và WAL/SHM trước khi thay EXE; giữ nguyên chương trình nếu sao lưu/ghi tệp thất bại; không làm thay đổi Worker Cloudflare.
+
+## Tệp DUY NHẤT được phép phát hành
+- Tag: `v3.11.99`
+- Tên asset sau xác minh: `LocPhatPOS_V31199_Setup.exe`
+- Tệp người dùng tải lên bản nháp có thể mang tên: `LocPhatPOS_V31199_Setup_KIEM_THU.exe`
+- Kích thước: **11046400 byte**
+- SHA-256: `874702b8c3d16cc349ab75771f65709f2e8979442e0b09e7baef54e541231fb0`
+
+Workflow sẽ không publish nếu không tìm thấy tệp chính xác, SHA-256 sai hoặc thiếu PE header. Chỉ sau publish và kiểm tra API cập nhật Cloudflare mới báo cập nhật Windows thành công.
