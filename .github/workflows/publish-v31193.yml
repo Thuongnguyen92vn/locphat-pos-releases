@@ -1,0 +1,132 @@
+name: Publish verified Lộc Phát POS V3.11.93 Windows update
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/publish-v31193.yml
+      - .github/release-requests/v3.11.93.txt
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: locphat-release-v31193
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: v3.11.93
+      ASSET_NAME: LocPhatPOS_V31193_Setup.exe
+      UPLOADED_NAME: LocPhatPOS_Setup.v31193.exe
+      EXPECTED_SIZE: "11011584"
+      EXPECTED_SHA256: 614ebf145fbf5ff63cea514304d324f404861c24e4a62fb0af4029096654770a
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare private draft release; leave production unchanged until validated
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! gh release view "$RELEASE_TAG" --json tagName >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --target main --draft \
+              --title "Lộc Phát POS V3.11.93" \
+              --notes-file .github/release-requests/v3.11.93.txt
+          fi
+
+      - name: Validate GitHub asset SHA-256, size, and name BEFORE publication
+        id: asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_json=""
+          for attempt in $(seq 1 12); do
+            release_json="$(gh api "repos/$GH_REPO/releases?per_page=100" | jq -c --arg t "$RELEASE_TAG" '.[] | select(.tag_name == $t)' || true)"
+            if [ -n "$release_json" ]; then break; fi
+            sleep 2
+          done
+          test -n "$release_json" || { echo "::error::Cannot read V3.11.93 release metadata"; exit 1; }
+          assets="$(printf '%s' "$release_json" | jq -c --arg standard "$ASSET_NAME" --arg original "$UPLOADED_NAME" '[.assets[] | select(.name==$standard or .name==$original)]')"
+          count="$(printf '%s' "$assets" | jq 'length')"
+          if [ "$count" = "0" ]; then
+            test "$(printf '%s' "$release_json" | jq -r '.draft')" = "true" || { echo "::error::Published release has no verified EXE"; exit 1; }
+            echo "::notice::Draft only: upload the original V3.11.93 setup asset. Production remains unchanged."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          test "$count" = "1" || { echo "::error::Ambiguous installer assets. Keep exactly one EXE."; exit 1; }
+          asset="$(printf '%s' "$assets" | jq -c '.[0]')"
+          actual_name="$(printf '%s' "$asset" | jq -r '.name')"
+          asset_id="$(printf '%s' "$asset" | jq -r '.id')"
+          test "$(printf '%s' "$asset" | jq -r '.state')" = "uploaded" || { echo "::error::Asset is not fully uploaded"; exit 1; }
+          test "$(printf '%s' "$asset" | jq -r '.size')" = "$EXPECTED_SIZE" || { echo "::error::Wrong installer size"; exit 1; }
+          test "$(printf '%s' "$asset" | jq -r '.digest')" = "sha256:$EXPECTED_SHA256" || { echo "::error::Wrong installer SHA-256"; exit 1; }
+          if [ "$actual_name" != "$ASSET_NAME" ]; then
+            test "$(printf '%s' "$release_json" | jq -r '.draft')" = "true" || { echo "::error::Cannot rename already published asset"; exit 1; }
+            gh api --method PATCH "repos/$GH_REPO/releases/assets/$asset_id" -f name="$ASSET_NAME" >/dev/null
+          fi
+          # Fetch metadata again after rename and refuse all mismatches.
+          release_json="$(gh api "repos/$GH_REPO/releases?per_page=100" | jq -c --arg t "$RELEASE_TAG" '.[] | select(.tag_name == $t)')"
+          asset="$(printf '%s' "$release_json" | jq -ce --arg name "$ASSET_NAME" '.assets[] | select(.name==$name)')"
+          test "$(printf '%s' "$asset" | jq -r '.id')" = "$asset_id"
+          test "$(printf '%s' "$asset" | jq -r '.size')" = "$EXPECTED_SIZE"
+          test "$(printf '%s' "$asset" | jq -r '.digest')" = "sha256:$EXPECTED_SHA256"
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+      - name: Publish verified exact binary only
+        if: steps.asset.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$(gh release view "$RELEASE_TAG" --json isDraft --jq '.isDraft')" = "true" ]; then
+            gh release edit "$RELEASE_TAG" --draft=false --prerelease=false --latest
+          fi
+
+      - name: Verify production Cloudflare manifest and full Windows EXE download
+        if: steps.asset.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE='https://locphat-pos-sync.locphatpos.workers.dev/v1/updates/windows'
+          confirmed=false
+          for attempt in $(seq 1 24); do
+            if curl --fail --silent --show-error --max-time 20 "$BASE" -o "$RUNNER_TEMP/manifest.json" \
+              && python3 - "$RUNNER_TEMP/manifest.json" "$EXPECTED_SIZE" "$EXPECTED_SHA256" <<'PY'
+          import json,sys
+          obj=json.load(open(sys.argv[1], encoding='utf-8'))
+          assert obj.get('ok') is True and obj.get('available') is True,obj
+          assert obj.get('version')=='3.11.93',obj
+          assert obj.get('size')==int(sys.argv[2]),obj
+          assert obj.get('sha256','').lower()==sys.argv[3],obj
+          assert obj.get('url')=='https://locphat-pos-sync.locphatpos.workers.dev/v1/updates/windows/download?version=3.11.93',obj
+          print('PASS production V3.11.93 update manifest')
+          PY
+            then
+              confirmed=true
+              break
+            fi
+            sleep 12
+          done
+          test "$confirmed" = "true" || { echo "::error::Production Worker does not advertise V3.11.93"; exit 1; }
+
+          p="$RUNNER_TEMP/LocPhatPOS_V31193_Setup.exe"
+          curl --fail --location --silent --show-error --retry 2 --max-time 240 \
+            "$BASE/download?version=3.11.93" -o "$p"
+          test "$(stat -c%s "$p")" = "$EXPECTED_SIZE"
+          echo "$EXPECTED_SHA256  $p" | sha256sum -c --status
+          python3 - "$p" <<'PY'
+          import sys
+          with open(sys.argv[1],'rb') as f:
+              assert f.read(2)==b'MZ','Installer is not Windows PE'
+              f.seek(0x3c)
+              off=int.from_bytes(f.read(4),'little')
+              f.seek(off)
+              assert f.read(4)==b'PE\x00\x00','Installer PE header missing'
+          print('PASS V3.11.93 full Cloudflare Windows download, exact bytes and PE format')
+          PY
