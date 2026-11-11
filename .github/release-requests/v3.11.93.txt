@@ -1,0 +1,27 @@
+# Lộc Phát POS V3.11.93 — Cập nhật Windows
+
+**Bản nâng cấp từ V3.11.88 lên V3.11.93**, giữ nguyên dữ liệu SQLite đang lưu trên máy.
+
+## Các điểm cập nhật đã kiểm thử tự động
+
+- V3.11.89: xử lý cảnh báo trạng thái thực đơn Cloud và giảm chờ không cần thiết sau đăng nhập; giới hạn doanh thu, hóa đơn Thu ngân theo đúng tài khoản tại Windows và Cloud.
+- V3.11.90: giảm tình trạng giật khi xác nhận món và lỗi lưu; tối ưu tương tác size/topping; bố cục Liên lạc gọn hơn; dùng chung STT giữa các tài khoản trên cùng máy POS.
+- V3.11.91–V3.11.92: không tự mở hàng loạt tab; giảm lưu bản nháp thực sự trống, bảo toàn đơn có món và chứng cứ in; KPI Tiền giảm đỏ, Thực thu xanh lá, Trung bình/đơn cam dịu.
+- V3.11.93: thẻ đơn mới hiển thị **STT dự kiến** thay chữ “Đơn mới”; chỉ có một thẻ trống chưa lưu; bỏ “Đơn đang lưu” khỏi thanh thẻ, khôi phục đơn dang dở chủ động trong menu; STT chỉ được cấp chính thức khi lưu món đầu tiên thành công.
+
+## Kiểm thử và an toàn cập nhật
+
+- Đã xác nhận Go tests, Go vet, JavaScript syntax, định dạng PE32+ Windows x64 trên mã và bộ cài V3.11.93.
+- Các kiểm thử Chromium giao diện và xử lý đơn nháp đã đạt trong quá trình đóng gói; chưa thay thế nghiệm thu trên máy POS thật.
+- Không chủ động xóa hóa đơn thanh toán, thay đổi mẫu in, driver K80/tem, hoặc reset STT đã sử dụng.
+- Trước khi cập nhật ở máy đang bán hàng, nên sao lưu SQLite; thoát hẳn ứng dụng để trình cài đặt nâng cấp an toàn.
+- Chưa xác minh in K80/tem thật và cập nhật cài đè trên máy quán. Cần nghiệm thu sau khi máy POS nhận bản mới.
+- Bản Windows không tự sửa quy tắc phân phối thực đơn của chi nhánh cũ; Cloud PR #68 xử lý kế thừa cho chi nhánh mới sau khi Worker được triển khai.
+
+## Tệp duy nhất được phép phát hành
+
+- Tên: `LocPhatPOS_V31193_Setup.exe`
+- Kích thước: **11011584** byte
+- SHA-256: `614ebf145fbf5ff63cea514304d324f404861c24e4a62fb0af4029096654770a`
+
+Bộ cài chỉ được công khai khi GitHub Release chứa tệp đúng tên, kích thước và SHA-256; workflow sẽ kiểm tra thêm manifest Cloudflare và toàn bộ bản tải xuống. Không công khai release trống hoặc tệp không khớp.
