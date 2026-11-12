@@ -1,0 +1,37 @@
+name: Stage V3.12.2 Windows candidate as draft only
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/stage-v3122.yml
+      - .github/release-requests/v3.12.2.txt
+  workflow_dispatch:
+
+permissions:
+  contents: write
+concurrency:
+  group: locphat-v3122-draft
+  cancel-in-progress: false
+
+jobs:
+  stage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stage draft, never publish without real acceptance
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! gh release view v3.12.2 --json tagName >/dev/null 2>&1; then
+            gh release create v3.12.2 --target main --draft \
+              --title "Lộc Phát POS V3.12.2 — Chờ nghiệm thu" \
+              --notes-file .github/release-requests/v3.12.2.txt
+          fi
+          gh release view v3.12.2 --json isDraft,tagName > "$RUNNER_TEMP/release.json"
+          test "$(jq -r '.isDraft' "$RUNNER_TEMP/release.json")" = "true" || \
+            { echo "::error::V3.12.2 was published without acceptance"; exit 1; }
+          echo "::notice::Candidate release is draft only. V3.12.1 stays production."
