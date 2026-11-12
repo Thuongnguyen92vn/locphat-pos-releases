@@ -22,3 +22,6 @@ Bản phát hành Windows kế tiếp sau V3.12. Không thay đổi chức năng
 - SHA-256 đúng: `4565f601d9da037a70920bffb52f6c116622047b53d492ce7aa908480d450989`
 
 Release chỉ được công khai khi asset đúng tên, kích thước, SHA-256 và định dạng Windows PE. Nếu thiếu asset, để nguyên draft; không ảnh hưởng bản đang sử dụng. Sau khi công khai phải kiểm tra API cập nhật Cloudflare và tải trọn bộ cài với đúng SHA-256.
+
+
+Phát hành kiểm chứng: GitHub asset đã được tải lên, đúng tên/kích thước/SHA-256; yêu cầu workflow xác minh PE trước khi công khai.
