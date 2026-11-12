@@ -1,0 +1,27 @@
+# Lộc Phát POS V3.12.2 — CHỜ NGHIỆM THU
+Bản ứng viên dựa trên V3.12.1, xử lý VĐ80–86. KHÔNG tự phát hành vì chưa kiểm thử POS Windows thực tế và Worker Authy chưa triển khai.
+
+## Thay đổi chính
+- Chọn lịch xóa hóa đơn trong Windows WebView2.
+- Authy-TOTP Admin hệ thống và API xóa vĩnh viễn (phần Cloud còn trong PR nháp #83).
+- Tách hiển thị Thu ngân khỏi bước chờ STT; timeout Cloud STT riêng, bảo toàn cơ chế UUID.
+- Bỏ in đậm số liệu Top 10 món.
+- Đồng bộ thực đơn bằng sự kiện, áp dụng lại sau khi đóng form/giỏ hàng; tránh cập nhật nhầm chi nhánh.
+- Chặn việc sửa món tại chi nhánh gửi danh sách phân phối rỗng.
+
+## Chất lượng & giới hạn
+- JavaScript Windows 56/58 PASS; còn 2 lỗi nền đã có trước.
+- Go STT và V3.12.2 trọng điểm PASS; còn 2 lỗi nền ở bộ Go.
+- Chromium mô phỏng VĐ80/83/84/85 PASS; PE Windows x64 build PASS.
+- Cloud PR #83: kiểm thử Worker + TOTP + hồi quy Mobile PASS, chưa merge/deploy.
+- **Chưa khôi phục các bản ghi phân phối đã bị ghi rỗng trên D1**; không suy đoán phân phối mặc định.
+
+## Chỉ phát hành sau nghiệm thu & phối hợp Cloud
+- Tag dự kiến: `v3.12.2`
+- Asset dùng khi đủ điều kiện: `LocPhatPOS_V3122_Setup.exe` (đổi tên từ tệp TEST đã nghiệm thu, không đổi bytes)
+- Kích thước chính xác: **11141632 byte**
+- SHA-256: `dadfc2c7136a3f7f270e9f45709d1e29937a36ae50296cff7a1a9f3e76015780`
+- Phải xác minh SHA-256 và định dạng PE, trước khi công khai. Không phát hành khi PR Cloud còn ở trạng thái chưa triển khai, hoặc chưa xác minh khả năng đăng nhập/xóa an toàn.
+- Không thay dữ liệu SQLite, mẫu in hoặc cơ chế in K80/tem.
+
+Chi tiết: https://github.com/Thuongnguyen92vn/locphat-pos-cloud/pull/83
