@@ -1,0 +1,117 @@
+name: Publish verified Loc Phat POS V3.12.1 Windows update
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/publish-v3121.yml
+      - .github/release-requests/v3.12.1.txt
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: locphat-release-v3121
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: v3.12.1
+      ASSET_NAME: LocPhatPOS_V3121_Setup.exe
+      EXPECTED_SIZE: "11108864"
+      EXPECTED_SHA256: 4565f601d9da037a70920bffb52f6c116622047b53d492ce7aa908480d450989
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create unpublished release draft if missing
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! gh release view "$RELEASE_TAG" --json tagName >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --target main --draft \
+              --title "Lộc Phát POS V3.12.1" \
+              --notes-file .github/release-requests/v3.12.1.txt
+          fi
+
+      - name: Verify exact installer asset before publication
+        id: asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          json="$(gh api "repos/$GH_REPO/releases?per_page=100" | jq -c --arg t "$RELEASE_TAG" '.[] | select(.tag_name==$t)')"
+          test -n "$json" || { echo "::error::Release metadata not found"; exit 1; }
+          assets="$(printf '%s' "$json" | jq -c --arg n "$ASSET_NAME" '[.assets[]|select(.name==$n)]')"
+          count="$(printf '%s' "$assets" | jq 'length')"
+          if [ "$count" = "0" ]; then
+            test "$(printf '%s' "$json" | jq -r '.draft')" = "true" || { echo "::error::Published release has no verified installer"; exit 1; }
+            echo "::notice::Installer not uploaded; V3.12.1 stays draft. Windows production unchanged."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          test "$count" = "1" || { echo "::error::Expected exactly one matching installer asset"; exit 1; }
+          a="$(printf '%s' "$assets" | jq -c '.[0]')"
+          test "$(printf '%s' "$a" | jq -r '.state')" = "uploaded" || { echo "::error::Installer upload incomplete"; exit 1; }
+          test "$(printf '%s' "$a" | jq -r '.size')" = "$EXPECTED_SIZE" || { echo "::error::Installer size mismatch"; exit 1; }
+          test "$(printf '%s' "$a" | jq -r '.digest')" = "sha256:$EXPECTED_SHA256" || { echo "::error::Installer GitHub SHA-256 mismatch"; exit 1; }
+
+          file="$RUNNER_TEMP/$ASSET_NAME"
+          gh release download "$RELEASE_TAG" --pattern "$ASSET_NAME" --dir "$RUNNER_TEMP" --clobber
+          test "$(stat -c%s "$file")" = "$EXPECTED_SIZE"
+          echo "$EXPECTED_SHA256  $file" | sha256sum --check --status
+          python3 - "$file" <<'PY'
+          import sys
+          with open(sys.argv[1], 'rb') as f:
+              assert f.read(2) == b'MZ', 'Missing Windows MZ header'
+              f.seek(0x3c)
+              off = int.from_bytes(f.read(4), 'little')
+              f.seek(off)
+              assert f.read(4) == b'PE\\x00\\x00', 'Missing Windows PE signature'
+          print('PASS Windows PE header, exact bytes and SHA-256')
+          PY
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+      - name: Publish only after binary verification
+        if: steps.asset.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$(gh release view "$RELEASE_TAG" --json isDraft --jq '.isDraft')" = "true" ]; then
+            gh release edit "$RELEASE_TAG" --draft=false --prerelease=false --latest
+          fi
+
+      - name: Verify Cloudflare Windows update points to exact release
+        if: steps.asset.outputs.ready == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE=https://locphat-pos-sync.locphatpos.workers.dev/v1/updates/windows
+          ok=false
+          for attempt in $(seq 1 24); do
+            if curl --fail --silent --show-error --max-time 20 "$BASE" -o "$RUNNER_TEMP/manifest.json" && \
+               python3 - "$RUNNER_TEMP/manifest.json" "$EXPECTED_SIZE" "$EXPECTED_SHA256" <<'PY'
+          import json,sys
+          obj=json.load(open(sys.argv[1],encoding='utf-8'))
+          assert obj.get('ok') is True, obj
+          assert obj.get('available') is True, obj
+          assert obj.get('version')=='3.12.1', obj
+          assert obj.get('size')==int(sys.argv[2]), obj
+          assert obj.get('sha256','').lower()==sys.argv[3], obj
+          assert obj.get('url')=='https://locphat-pos-sync.locphatpos.workers.dev/v1/updates/windows/download?version=3.12.1', obj
+          print('PASS V3.12.1 production manifest')
+          PY
+            then ok=true; break; fi
+            sleep 12
+          done
+          test "$ok" = "true" || { echo "::error::Cloudflare updater does not yet advertise V3.12.1"; exit 1; }
+          p="$RUNNER_TEMP/LocPhatPOS_V3121_Setup_downloaded.exe"
+          curl --fail --location --silent --show-error --retry 2 --max-time 240 \
+            "$BASE/download?version=3.12.1" -o "$p"
+          test "$(stat -c%s "$p")" = "$EXPECTED_SIZE"
+          echo "$EXPECTED_SHA256  $p" | sha256sum --check --status
+          echo "PASS: cloud download exact bytes"
