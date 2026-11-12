@@ -21,3 +21,7 @@ Nâng cấp từ V3.11.98 / các phiên bản Windows cũ, không thay đổi d�
 - SHA-256: `874702b8c3d16cc349ab75771f65709f2e8979442e0b09e7baef54e541231fb0`
 
 Workflow sẽ không publish nếu không tìm thấy tệp chính xác, SHA-256 sai hoặc thiếu PE header. Chỉ sau publish và kiểm tra API cập nhật Cloudflare mới báo cập nhật Windows thành công.
+
+## Xác nhận asset đã được tải lên GitHub (12/11/2026)
+
+- Đã xác minh GitHub Asset API: `LocPhatPOS_V31199_Setup_KIEM_THU.exe`, trạng thái uploaded, kích thước 11046400 byte, SHA-256 khớp bản kiểm thử. Workflow sẽ chỉ công bố nếu xác minh lại khớp và đổi tên asset về tên chuẩn.
