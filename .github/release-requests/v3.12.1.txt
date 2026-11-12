@@ -1,0 +1,24 @@
+# Lộc Phát POS Windows V3.12.1 — cập nhật giao diện
+
+Bản phát hành Windows kế tiếp sau V3.12. Không thay đổi chức năng bán hàng, SQL, đồng bộ Cloud hoặc logic máy in so với V3.12.
+
+## Nội dung
+- VĐ71: sửa lại bảng Nhóm món: hiển thị hết chiều rộng, căn đều 5 cột, hàng gọn, không mất nút kéo thả/sửa/xóa/In tem.
+- VĐ78: bỏ in đậm số tiền Giảm giá ở chi tiết hủy hóa đơn và hai tab Trước sửa/Sau sửa.
+- VĐ79: bỏ in đậm tên món, số lượng, thành tiền từng món và các khoản chênh lệch trong các cửa sổ chi tiết liên quan; giữ nhấn mạnh dòng Thanh toán.
+- Giữ các sửa đổi VĐ69–77 từ bản V3.12.
+
+## Kiểm thử đã thực hiện
+- Chromium giao diện, 1.649px và 1.280px: PASS các kịch bản chuyên biệt và hồi quy VĐ66–76.
+- Node: 52/54 PASS; 2 ca cũ vẫn không đạt (QR UI, Cloud UI contract).
+- Go: còn 2 ca cũ không đạt (hợp đồng chat/phân quyền, quy tắc đơn nháp).
+- Windows x64 installer: biên dịch và nhận diện PE thành công.
+- **Chưa nghiệm thu** cài đè trên máy chứa SQLite thật, in K80/tem thật, đồng bộ đa máy hoặc PWA Mobile.
+
+## Bộ cài bắt buộc trước khi phát hành
+- Tag: `v3.12.1`
+- Asset: `LocPhatPOS_V3121_Setup.exe`
+- Kích thước đúng: **11108864 byte**
+- SHA-256 đúng: `4565f601d9da037a70920bffb52f6c116622047b53d492ce7aa908480d450989`
+
+Release chỉ được công khai khi asset đúng tên, kích thước, SHA-256 và định dạng Windows PE. Nếu thiếu asset, để nguyên draft; không ảnh hưởng bản đang sử dụng. Sau khi công khai phải kiểm tra API cập nhật Cloudflare và tải trọn bộ cài với đúng SHA-256.
