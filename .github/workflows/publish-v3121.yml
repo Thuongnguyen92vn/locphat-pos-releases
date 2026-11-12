@@ -71,7 +71,7 @@ jobs:
               f.seek(0x3c)
               off = int.from_bytes(f.read(4), 'little')
               f.seek(off)
-              assert f.read(4) == b'PE\\x00\\x00', 'Missing Windows PE signature'
+              assert f.read(4) == b'PE\x00\x00', 'Missing Windows PE signature'
           print('PASS Windows PE header, exact bytes and SHA-256')
           PY
           echo "ready=true" >> "$GITHUB_OUTPUT"
